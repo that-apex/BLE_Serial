@@ -11,6 +11,10 @@ if (WIN32)
             src/platform/windows/bluetooth.cpp
             src/platform/windows/com.cpp
     )
+
+    if (MSVC)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /await")
+    endif()
 endif()
 
 # Library

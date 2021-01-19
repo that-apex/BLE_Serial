@@ -47,9 +47,22 @@ namespace BLE_Serial::Bluetooth
          * Helper for blocking for winrt IAsyncOperations
          */
         template<typename R>
-        static R WaitWithTimeout(winrt::Windows::Foundation::IAsyncOperation<R> &&task, std::chrono::seconds timeout)
+        static R WaitWithTimeout(IAsyncOperation<R> &&task, std::chrono::seconds timeout)
         {
-            task.wait_for(std::chrono::duration_cast<TimeSpan>(timeout));
+            std::mutex mutex {};
+            std::condition_variable condition {};
+
+            task.Completed([&condition, &mutex](const IAsyncOperation<R>& asyncInfo, AsyncStatus asyncStatus) {
+                std::unique_lock<std::mutex> lock { mutex };
+                condition.notify_all();
+            });
+
+            const auto deadline = std::chrono::system_clock::now() + timeout;
+
+            while (std::chrono::system_clock::now() < deadline && task.Status() == AsyncStatus::Started) {
+                std::unique_lock<std::mutex> lock { mutex };
+                condition.wait_until(lock, deadline);
+            }
 
             switch (task.Status()) {
                 case AsyncStatus::Completed:
@@ -259,7 +272,7 @@ namespace BLE_Serial::Bluetooth
     {
         m_services.reserve(services.Size());
 
-        for (auto &service : services) {
+        for (auto service : services) {
             m_services.emplace_back(std::make_unique<WindowsBluetoothGattService>(service, m_timeout));
         }
     }
@@ -344,7 +357,7 @@ namespace BLE_Serial::Bluetooth
             }
 
             m_characteristics.clear();
-            for (auto &characteristic : characteristics.Characteristics()) {
+            for (auto characteristic : characteristics.Characteristics()) {
                 m_characteristics.emplace_back(std::make_unique<WindowsBluetoothGattCharacteristic>(std::move(characteristic), m_timeout));
             }
         } WINRT_CALL_END;
@@ -380,7 +393,7 @@ namespace BLE_Serial::Bluetooth
                 throw BluetoothException("Failed to read value");
             }
 
-            auto &value = result.Value();
+            auto value = result.Value();
             std::vector<uint8_t> data;
             data.reserve(value.Length());
             data.insert(std::end(data), value.data(), value.data() + value.Length());
@@ -415,7 +428,7 @@ namespace BLE_Serial::Bluetooth
             }
 
             auto token = m_characteristic.ValueChanged([f = std::move(listener)](const GattCharacteristic &sender, const GattValueChangedEventArgs &args) {
-                auto &value = args.CharacteristicValue();
+                auto value = args.CharacteristicValue();
                 std::vector<uint8_t> vec;
                 vec.reserve(value.Length());
                 vec.insert(std::end(vec), value.data(), value.data() + value.Length());

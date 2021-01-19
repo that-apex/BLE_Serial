@@ -17,7 +17,7 @@ void SigintHandler(int)
 
 void PrintUsage(const char* name)
 {
-    std::cout << "BLESerial v0.1.0 by apex_ \n";
+    std::cout << "BLESerial v0.1.1 by apex_ (GitHub: https://github.com/that-apex/BLE_Serial) \n";
     std::cout << "Correct usage: \n";
     std::cout << "\t" << name << " ls [timeout=5] - Scans for BLE devices for [timeout] seconds and prints the results. \n";
     std::cout << "\t" << name << " query <device_addr> [timeout=5] - Tries to query information from a BLE device with <device_addr> for [timeout] seconds and prints the results. \n";
